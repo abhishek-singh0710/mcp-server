@@ -12,12 +12,9 @@ import (
 	"github.com/harness/harness-mcp/pkg/utils"
 )
 
-func ListCcmPerspectivesDetailTool(config *config.Config, client *client.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func ListCcmPerspectivesDetailTool(config *config.Config, client *client.CloudCostManagementService) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("list_ccm_perspectives_detail",
 			mcp.WithDescription("List the cost perspectives with advanced options in Harness Cloud Cost Management"),
-			mcp.WithString("account_id",
-				mcp.Description("The account identifier"),
-			),
 			mcp.WithString("search_key",
 				mcp.Description("Optional search key to filter perspectives"),
 			),
@@ -47,10 +44,7 @@ func ListCcmPerspectivesDetailTool(config *config.Config, client *client.Client)
 			WithScope(config, false),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			accountId, err := OptionalParam[string](request, "account_id")
-			if accountId == "" {
-				accountId, err = getAccountID(config, request)
-			}
+			accountId, err := getAccountID(config, request)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -108,7 +102,7 @@ func ListCcmPerspectivesDetailTool(config *config.Config, client *client.Client)
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			data, err := client.CloudCostManagement.ListPerspectivesDetail(ctx, scope, params)
+			data, err := client.ListPerspectivesDetail(ctx, scope, params)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get CCM Cost Perspectives: %w", err)
 			}
