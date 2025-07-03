@@ -8,10 +8,10 @@ import (
 
 const (
 	// Base API paths
-	chaosListExperimentsPath  = "api/rest/v2/experiment?accountIdentifier=%s&projectIdentifier=%s&organizationIdentifier=%s"
-	chaosGetExperimentPath    = "api/rest/v2/experiments/%s?accountIdentifier=%s&projectIdentifier=%s&organizationIdentifier=%s"
-	chaosGetExperimentRunPath = "api/rest/v2/experiments/%s/run?accountIdentifier=%s&projectIdentifier=%s&organizationIdentifier=%s&experimentRunId=%s"
-	chaosExperimentRunPath    = "api/rest/v2/experiments/%s/run?accountIdentifier=%s&projectIdentifier=%s&organizationIdentifier=%s&isIdentity=false"
+	chaosListExperimentsPath  = "api/rest/v2/experiment"
+	chaosGetExperimentPath    = "api/rest/v2/experiments/%s"
+	chaosGetExperimentRunPath = "api/rest/v2/experiments/%s/run"
+	chaosExperimentRunPath    = "api/rest/v2/experiments/%s/run"
 
 	// Prefix to prepend for external API calls
 	externalChaosManagerPathPrefix = "chaos/manager/"
@@ -29,12 +29,21 @@ func (c *ChaosService) buildPath(basePath string) string {
 	return externalChaosManagerPathPrefix + basePath
 }
 
-func (c *ChaosService) ListExperiments(ctx context.Context, scope dto.Scope) (*dto.ListExperimentResponse, error) {
+func (c *ChaosService) ListExperiments(ctx context.Context, scope dto.Scope, pagination *dto.PaginationOptions) (*dto.ListExperimentResponse, error) {
 	var (
 		pathTemplate = c.buildPath(chaosListExperimentsPath)
-		path         = fmt.Sprintf(pathTemplate, scope.AccountID, scope.ProjectID, scope.OrgID)
+		path         = fmt.Sprintf(pathTemplate)
 		params       = make(map[string]string)
 	)
+
+	// Set default pagination
+	setDefaultPagination(pagination)
+
+	// Add pagination parameters
+	params["page"] = fmt.Sprintf("%d", pagination.Page)
+	params["limit"] = fmt.Sprintf("%d", pagination.Size)
+	// Add scope parameters
+	params = addIdentifierParams(params, scope)
 
 	listExperiments := new(dto.ListExperimentResponse)
 	err := c.Client.Get(ctx, path, params, nil, listExperiments)
@@ -48,9 +57,12 @@ func (c *ChaosService) ListExperiments(ctx context.Context, scope dto.Scope) (*d
 func (c *ChaosService) GetExperiment(ctx context.Context, scope dto.Scope, experimentID string) (*dto.GetExperimentResponse, error) {
 	var (
 		pathTemplate = c.buildPath(chaosGetExperimentPath)
-		path         = fmt.Sprintf(pathTemplate, experimentID, scope.AccountID, scope.ProjectID, scope.OrgID)
+		path         = fmt.Sprintf(pathTemplate, experimentID)
 		params       = make(map[string]string)
 	)
+
+	// Add scope parameters
+	params = addIdentifierParams(params, scope)
 
 	getExperiment := new(dto.GetExperimentResponse)
 	err := c.Client.Get(ctx, path, params, nil, getExperiment)
@@ -64,9 +76,13 @@ func (c *ChaosService) GetExperiment(ctx context.Context, scope dto.Scope, exper
 func (c *ChaosService) GetExperimentRun(ctx context.Context, scope dto.Scope, experimentID, experimentRunID string) (*dto.ChaosExperimentRun, error) {
 	var (
 		pathTemplate = c.buildPath(chaosGetExperimentRunPath)
-		path         = fmt.Sprintf(pathTemplate, experimentID, scope.AccountID, scope.ProjectID, scope.OrgID, experimentRunID)
+		path         = fmt.Sprintf(pathTemplate, experimentID)
 		params       = make(map[string]string)
 	)
+
+	params["experimentRunId"] = experimentRunID
+	// Add scope parameters
+	params = addIdentifierParams(params, scope)
 
 	getExperimentRun := new(dto.ChaosExperimentRun)
 	err := c.Client.Get(ctx, path, params, nil, getExperimentRun)
@@ -80,9 +96,13 @@ func (c *ChaosService) GetExperimentRun(ctx context.Context, scope dto.Scope, ex
 func (c *ChaosService) RunExperiment(ctx context.Context, scope dto.Scope, experimentID string) (*dto.RunChaosExperimentResponse, error) {
 	var (
 		pathTemplate = c.buildPath(chaosExperimentRunPath)
-		path         = fmt.Sprintf(pathTemplate, experimentID, scope.AccountID, scope.ProjectID, scope.OrgID)
+		path         = fmt.Sprintf(pathTemplate, experimentID)
 		params       = make(map[string]string)
 	)
+
+	// Add scope parameters
+	params["isIdentity"] = "false"
+	params = addIdentifierParams(params, scope)
 
 	experimentRun := new(dto.RunChaosExperimentResponse)
 	err := c.Client.Post(ctx, path, params, nil, experimentRun)
@@ -91,4 +111,11 @@ func (c *ChaosService) RunExperiment(ctx context.Context, scope dto.Scope, exper
 	}
 
 	return experimentRun, nil
+}
+
+func addIdentifierParams(params map[string]string, scope dto.Scope) map[string]string {
+	params["accountIdentifier"] = scope.AccountID
+	params["projectIdentifier"] = scope.ProjectID
+	params["organizationIdentifier"] = scope.OrgID
+	return params
 }

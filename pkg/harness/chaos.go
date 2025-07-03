@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/harness/harness-mcp/client"
+	"github.com/harness/harness-mcp/client/dto"
 	"github.com/harness/harness-mcp/cmd/harness-mcp-server/config"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -15,6 +16,7 @@ func ListExperimentsTool(config *config.Config, client *client.ChaosService) (to
 	return mcp.NewTool("chaos_experiments_list",
 			mcp.WithDescription("List the chaos experiments"),
 			WithScope(config, false),
+			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			scope, err := fetchScope(config, request, false)
@@ -22,7 +24,17 @@ func ListExperimentsTool(config *config.Config, client *client.ChaosService) (to
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			data, err := client.ListExperiments(ctx, scope)
+			page, size, err := fetchPagination(request)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+
+			pagination := &dto.PaginationOptions{
+				Page: page,
+				Size: size,
+			}
+
+			data, err := client.ListExperiments(ctx, scope, pagination)
 			if err != nil {
 				return nil, fmt.Errorf("failed to list experiments: %w", err)
 			}
